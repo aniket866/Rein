@@ -1,6 +1,6 @@
-# Rein - Remote Input Control
+# Rein
 
-A web-based remote control for your computer.
+A cross-platform, LAN-based remote control. It allows touchscreen devices to act as a trackpad and keyboard for a desktop system through a locally served web interface.
 
 ## Tech Stack
 
