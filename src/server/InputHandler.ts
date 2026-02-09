@@ -3,7 +3,7 @@ import { KEY_MAP } from './KeyMap';
 import { CONFIG } from '../config';
 
 export interface InputMessage {
-    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom';
+    type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'swipe';
     dx?: number;
     dy?: number;
     button?: 'left' | 'right' | 'middle';
@@ -11,6 +11,7 @@ export interface InputMessage {
     key?: string;
     text?: string;
     delta?: number;
+    direction?: 'up' | 'down' | 'left' | 'right';
 }
 
 export class InputHandler {
@@ -19,73 +20,111 @@ export class InputHandler {
     }
 
     async handleMessage(msg: InputMessage) {
-        switch (msg.type) {
-            case 'move':
-                if (msg.dx !== undefined && msg.dy !== undefined) {
-                    const currentPos = await mouse.getPosition();
-                    // Apply sensitivity multiplier
-                    const sensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
-                    
-                    await mouse.setPosition(new Point(
-                        currentPos.x + (msg.dx * sensitivity), 
-                        currentPos.y + (msg.dy * sensitivity)
-                    ));
-                }
-                break;
-
-            case 'click':
-                if (msg.button) {
-                    const btn = msg.button === 'left' ? Button.LEFT : msg.button === 'right' ? Button.RIGHT : Button.MIDDLE;
-                    if (msg.press) {
-                        await mouse.pressButton(btn);
-                    } else {
-                        await mouse.releaseButton(btn);
+        try {
+            switch (msg.type) {
+                case 'move':
+                    if (msg.dx !== undefined && msg.dy !== undefined) {
+                        const currentPos = await mouse.getPosition();
+                        const sensitivity = CONFIG.MOUSE_SENSITIVITY ?? 1.0;
+                        await mouse.setPosition(new Point(
+                            currentPos.x + (msg.dx * sensitivity), 
+                            currentPos.y + (msg.dy * sensitivity)
+                        ));
                     }
-                }
-                break;
+                    break;
 
-            case 'scroll':
-                const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
-                if (msg.dy !== undefined && msg.dy !== 0) await mouse.scrollDown(msg.dy * invertMultiplier);
-                if (msg.dx !== undefined && msg.dx !== 0) await mouse.scrollRight(msg.dx * -1 * invertMultiplier);
-                break;
+                case 'click':
+                    if (msg.button) {
+                        const btn = msg.button === 'left' ? Button.LEFT : msg.button === 'right' ? Button.RIGHT : Button.MIDDLE;
+                        if (msg.press) {
+                            await mouse.pressButton(btn);
+                        } else {
+                            await mouse.releaseButton(btn);
+                        }
+                    }
+                    break;
 
-            case 'zoom':
-                if (msg.delta !== undefined && msg.delta !== 0) {
-                    const invertMultiplier = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
-                    const sensitivityFactor = 0.5; // Adjust scaling
-                    const MAX_ZOOM_STEP = 5;
-                    const scaledDelta = Math.sign(msg.delta) * Math.min(Math.abs(msg.delta) * sensitivityFactor, MAX_ZOOM_STEP);
-                    const amount = -scaledDelta * invertMultiplier;
-                    
-                    await keyboard.pressKey(Key.LeftControl);
-                    try {
-                        await mouse.scrollDown(amount);
-                    } finally {
+                case 'scroll':
+                    const invert = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
+                    if (msg.dy) {
+                        const amount = msg.dy * invert;
+                        // Lower threshold to catch smaller scrolls
+                        if (Math.abs(amount) >= 0.1) {
+                            await mouse.scrollDown(amount);
+                        }
+                    }
+                    if (msg.dx) {
+                        const amount = msg.dx * -1 * invert;
+                        if (Math.abs(amount) >= 0.1) {
+                            await mouse.scrollRight(amount);
+                        }
+                    }
+                    break;
+
+                case 'zoom':
+                    if (msg.delta !== undefined && msg.delta !== 0) {
+                        const invert = (CONFIG.MOUSE_INVERT ?? false) ? -1 : 1;
+                        // Simple zoom logic: ctrl + scroll
+                        const direction = Math.sign(msg.delta);
+                        // Ensure we scroll at least 1 tick
+                        const amount = direction * Math.max(1, Math.abs(Math.round(msg.delta))) * invert;
+
+                        await keyboard.pressKey(Key.LeftControl);
+                        try {
+                            await mouse.scrollDown(amount);
+                        } finally {
+                            await keyboard.releaseKey(Key.LeftControl);
+                        }
+                    }
+                    break;
+
+                case 'swipe':
+                    // Map 3-finger swipes to common OS shortcuts
+                    console.log('Processing Swipe:', msg.direction);
+                    if (msg.direction === 'left') {
+                        // Switch Desktop Left (Win+Ctrl+Left is common on Windows, Ctrl+Left on Mac)
+                        // Using Win+Left as a generic placeholder or Win+Tab for task view
+                        await keyboard.pressKey(Key.LeftSuper);
+                        await keyboard.pressKey(Key.LeftControl);
+                        await keyboard.type(Key.Left);
                         await keyboard.releaseKey(Key.LeftControl);
+                        await keyboard.releaseKey(Key.LeftSuper);
+                    } else if (msg.direction === 'right') {
+                        await keyboard.pressKey(Key.LeftSuper);
+                        await keyboard.pressKey(Key.LeftControl);
+                        await keyboard.type(Key.Right);
+                        await keyboard.releaseKey(Key.LeftControl);
+                        await keyboard.releaseKey(Key.LeftSuper);
+                    } else if (msg.direction === 'up') {
+                        // Task View (Win+Tab)
+                        await keyboard.pressKey(Key.LeftSuper);
+                        await keyboard.type(Key.Tab);
+                        await keyboard.releaseKey(Key.LeftSuper);
+                    } else if (msg.direction === 'down') {
+                        // Show Desktop (Win+D)
+                        await keyboard.pressKey(Key.LeftSuper);
+                        await keyboard.type(Key.D);
+                        await keyboard.releaseKey(Key.LeftSuper);
                     }
-                }
-                break;
+                    break;
 
-            case 'key':
-                if (msg.key) {
-                    console.log(`Processing key: ${msg.key}`);
-                    const nutKey = KEY_MAP[msg.key.toLowerCase()];
-                    if (nutKey !== undefined) {
-                        await keyboard.type(nutKey);
-                    } else if (msg.key.length === 1) {
-                        await keyboard.type(msg.key);
-                    } else {
-                        console.log(`Unmapped key: ${msg.key}`);
+                case 'key':
+                    if (msg.key) {
+                        const nutKey = KEY_MAP[msg.key.toLowerCase()];
+                        if (nutKey !== undefined) {
+                            await keyboard.type(nutKey);
+                        } else if (msg.key.length === 1) {
+                            await keyboard.type(msg.key);
+                        }
                     }
-                }
-                break;
+                    break;
 
-            case 'text':
-                if (msg.text) {
-                    await keyboard.type(msg.text);
-                }
-                break;
+                case 'text':
+                    if (msg.text) await keyboard.type(msg.text);
+                    break;
+            }
+        } catch (error) {
+            console.error('Input Handling Error:', error);
         }
     }
 }
