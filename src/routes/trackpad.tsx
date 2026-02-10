@@ -47,12 +47,14 @@ function TrackpadPage() {
             <ControlBar
                 scrollMode={scrollMode}
                 onToggleScroll={() => setScrollMode(!scrollMode)}
-                onLeftClick={() =>
-                    send({ type: 'click', button: 'left', press: true })
-                }
-                onRightClick={() =>
-                    send({ type: 'click', button: 'right', press: true })
-                }
+                onLeftClick={() => {
+                    send({ type: 'click', button: 'left', press: true });
+                    setTimeout(() => send({ type: 'click', button: 'left', press: false }), 40);
+                }}
+                onRightClick={() => {
+                    send({ type: 'click', button: 'right', press: true });
+                    setTimeout(() => send({ type: 'click', button: 'right', press: false }), 40);
+                }}
                 onKeyboardToggle={focusInput}
             />
 
