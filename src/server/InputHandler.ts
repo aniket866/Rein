@@ -155,7 +155,15 @@ export class InputHandler {
                     }
 
                     // Remove duplicate keys
-                    const uniqueKeys = [...new Set(msg.keys)];
+                    const seen = new Set<string>();
+                    const uniqueKeys: string[] = [];
+                    for (const k of msg.keys) {
+                        const lower = k.toLowerCase();
+                        if (!seen.has(lower)) {
+                            seen.add(lower);
+                            uniqueKeys.push(k);  // preserve original for single-char typing
+                        }
+                    }
 
                     const nutKeys: (Key | string)[] = [];
 
