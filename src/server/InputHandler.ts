@@ -41,18 +41,19 @@ export class InputHandler {
                     const safeDx = this.clamp(msg.dx, -InputHandler.MAX_DELTA, InputHandler.MAX_DELTA);
                     const safeDy = this.clamp(msg.dy, -InputHandler.MAX_DELTA, InputHandler.MAX_DELTA);
 
-                if (
-                    typeof msg.dx === 'number' &&
-                    typeof msg.dy === 'number' &&
-                    Number.isFinite(msg.dx) &&
-                    Number.isFinite(msg.dy)
-                ) {
-                    const currentPos = await mouse.getPosition();
+                    if (
+                        typeof msg.dx === 'number' &&
+                        typeof msg.dy === 'number' &&
+                        Number.isFinite(msg.dx) &&
+                        Number.isFinite(msg.dy)
+                    ) {
+                        const currentPos = await mouse.getPosition();
 
-                    await mouse.setPosition(new Point(
-                        Math.round(currentPos.x + msg.dx),
-                        Math.round(currentPos.y + msg.dy)
-                    ));
+                        await mouse.setPosition(new Point(
+                            Math.round(currentPos.x + safeDx),
+                            Math.round(currentPos.y + safeDy)
+                        ));
+                    }
                 }
                 break;
 
@@ -70,7 +71,7 @@ export class InputHandler {
             case 'scroll': {
                 const promises: Promise<void>[] = [];
 
-                //Clamp scroll values
+                // Clamp scroll values
                 const safeScrollY = typeof msg.dy === 'number'
                     ? this.clamp(msg.dy, -InputHandler.MAX_SCROLL, InputHandler.MAX_SCROLL)
                     : 0;
@@ -107,6 +108,13 @@ export class InputHandler {
 
             case 'zoom':
                 if (msg.delta !== undefined && msg.delta !== 0) {
+
+                    const safeDelta = this.clamp(
+                        msg.delta,
+                        -InputHandler.MAX_ZOOM_INPUT,
+                        InputHandler.MAX_ZOOM_INPUT
+                    );
+
                     const sensitivityFactor = 0.5;
                     const MAX_ZOOM_STEP = 5;
 
@@ -136,7 +144,6 @@ export class InputHandler {
                     console.log(`Processing key: ${msg.key}`);
                     const lowerKey = msg.key.toLowerCase();
 
-                    //  Allowlist validation
                     if (!(lowerKey in KEY_MAP) && lowerKey.length !== 1) {
                         console.warn(`Blocked unknown key: ${msg.key}`);
                         return;
@@ -155,20 +162,18 @@ export class InputHandler {
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
 
-                    // Limit combo length
                     if (msg.keys.length > InputHandler.MAX_COMBO_KEYS) {
                         console.warn('Combo too long — blocked');
                         return;
                     }
-
-                    // Remove duplicate keys
+                     // Remove duplicate keys
                     const seen = new Set<string>();
                     const uniqueKeys: string[] = [];
                     for (const k of msg.keys) {
                         const lower = k.toLowerCase();
                         if (!seen.has(lower)) {
                             seen.add(lower);
-                            uniqueKeys.push(k);  // preserve original for single-char typing
+                            uniqueKeys.push(k);
                         }
                     }
 
@@ -225,7 +230,6 @@ export class InputHandler {
             case 'text':
                 if (msg.text) {
 
-                    // Limit text length
                     if (msg.text.length > InputHandler.MAX_TEXT_LENGTH) {
                         console.warn('Text input too long — blocked');
                         return;
