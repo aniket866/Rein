@@ -35,21 +35,18 @@ export class InputHandler {
         switch (msg.type) {
 
             case 'move':
-<<<<<<< fixing-client-side-crash
                 if (msg.dx !== undefined && msg.dy !== undefined) {
 
                     // Clamp dx/dy
                     const safeDx = this.clamp(msg.dx, -InputHandler.MAX_DELTA, InputHandler.MAX_DELTA);
                     const safeDy = this.clamp(msg.dy, -InputHandler.MAX_DELTA, InputHandler.MAX_DELTA);
 
-=======
                 if (
                     typeof msg.dx === 'number' &&
                     typeof msg.dy === 'number' &&
                     Number.isFinite(msg.dx) &&
                     Number.isFinite(msg.dy)
                 ) {
->>>>>>> main
                     const currentPos = await mouse.getPosition();
                     
                     await mouse.setPosition(new Point(
