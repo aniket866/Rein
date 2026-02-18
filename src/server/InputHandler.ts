@@ -52,8 +52,8 @@ export class InputHandler {
                             const pending = this.pendingMove;
                             this.pendingMove = null;
                             this.handleMessage(pending).catch((err) => {
-+                                console.error('Error processing pending move event:', err);
-+                            });
+                                 console.error('Error processing pending move event:', err);
+                             });
                         }
                     }, 8);
                 }
