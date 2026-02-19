@@ -10,6 +10,10 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
     const [ip, setIp] = useState('');
     const [frontendPort, setFrontendPort] = useState(String(CONFIG.FRONTEND_PORT));
+    const [originalPort] = useState(String(CONFIG.FRONTEND_PORT));
+
+    const serverConfigChanged =
+        frontendPort !== originalPort;  
 
     // Client Side Settings (LocalStorage)
     const [invertScroll, setInvertScroll] = useState(() => {
@@ -18,7 +22,7 @@ function SettingsPage() {
             const saved = localStorage.getItem('rein_invert');
             return saved === 'true';
         } catch {
-            return false;
+            return false;   
         }
     });
 
@@ -48,7 +52,7 @@ function SettingsPage() {
     });
 
     // Derive URLs once at the top
-    const appPort = String(CONFIG.FRONTEND_PORT);
+    const appPort = String(frontendPort);
     const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
     const shareUrl = ip ? `${protocol}//${ip}:${appPort}/trackpad${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}` : '';
 
@@ -160,27 +164,11 @@ function SettingsPage() {
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                     {/* Left Column: Settings Form */}
                     <div className="w-full flex-1 space-y-8">
-                        <div className="form-control w-full">
-                            <label className="label">
-                                <span className="label-text">Server IP (for Remote)</span>
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="192.168.1.X"
-                                className="input input-bordered w-full"
-                                value={ip}
-                                onChange={(e) => setIp(e.target.value)}
-                            />
-                            <label className="label">
-                                <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
-                            </label>
-                        </div>
 
-                        <div className="divider" />
                         <h2 className="text-xl font-semibold">Client Settings</h2>
 
                         <div className="form-control w-full">
-                            <label className="label" htmlFor="sensitivity-slider">
+                            <label className="label mb-3" htmlFor="sensitivity-slider">
                                 <span className="label-text">Mouse Sensitivity</span>
                                 <span className="label-text-alt font-mono">
                                     {sensitivity.toFixed(1)}x
@@ -224,11 +212,12 @@ function SettingsPage() {
                         </div>
 
                         <div className="form-control w-full">
-                            <label className="label">
+                            <label className="label mb-3" htmlFor="theme-select">
                                 <span className="label-text">Theme</span>
                             </label>
                             <select
-                                className="select select-bordered w-full"
+                                id="theme-select"
+                                className="select select-bordered w-full rounded-md"
                                 value={theme}
                                 onChange={(e) => setTheme(e.target.value)}
                             >
@@ -237,14 +226,36 @@ function SettingsPage() {
                             </select>
                         </div>
 
+                        <div className="divider" />
+
+                        <h2 className="text-xl font-semibold">Server Settings</h2>
+
                         <div className="form-control w-full">
+                            <label className="label mb-3" htmlFor="server-ip-input">
+                                <span className="label-text">Server IP (for Remote)</span>
+                            </label>
+                            <input
+                                id="server-ip-input"
+                                type="text"
+                                placeholder="192.168.1.X"
+                                className="input input-bordered w-full rounded-md"
+                                value={ip}
+                                onChange={(e) => setIp(e.target.value)}
+                            />
                             <label className="label">
+                                <span className="label-text-alt opacity-50">This Computer's LAN IP</span>
+                            </label>
+                        </div>
+
+                        <div className="form-control w-full">
+                            <label className="label mb-3" htmlFor="port-input">
                                 <span className="label-text">Port</span>
                             </label>
                             <input
+                                id="port-input"
                                 type="text"
                                 placeholder={String(CONFIG.FRONTEND_PORT)}
-                                className="input input-bordered w-full"
+                                className="input input-bordered w-full rounded-md"
                                 value={frontendPort}
                                 onChange={(e) => setFrontendPort(e.target.value)}
                             />
@@ -261,7 +272,8 @@ function SettingsPage() {
 
                         <button
                             type="button"
-                            className="btn btn-neutral w-full"
+                            className="btn btn-primary w-full rounded-md"
+                            disabled={!serverConfigChanged}
                             onClick={() => {
                                 const port = parseInt(frontendPort, 10);
                                 if (!Number.isFinite(port) || port < 1 || port > 65535) {

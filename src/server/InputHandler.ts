@@ -32,6 +32,61 @@ export class InputHandler {
     }
 
     async handleMessage(msg: InputMessage) {
+        // Validation: Text length sanitation
+        if (msg.text && msg.text.length > 500) {
+            msg.text = msg.text.substring(0, 500);
+        }
+
+        // Validation: Sane bounds for coordinates
+        const MAX_COORD = 2000;
+        if (typeof msg.dx === 'number' && Number.isFinite(msg.dx)) {
+            msg.dx = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dx));
+        }
+        if (typeof msg.dy === 'number' && Number.isFinite(msg.dy)) {
+            msg.dy = Math.max(-MAX_COORD, Math.min(MAX_COORD, msg.dy));
+        }
+
+        // Throttling: Limit high-frequency events to ~125fps (8ms)
+        if (msg.type === 'move') {
+            const now = Date.now();
+            if (now - this.lastMoveTime < 8) {
+                this.pendingMove = msg;
+                if (!this.moveTimer) {
+                    this.moveTimer = setTimeout(() => {
+                        this.moveTimer = null;
+                        if (this.pendingMove) {
+                            const pending = this.pendingMove;
+                            this.pendingMove = null;
+                            this.handleMessage(pending).catch((err) => {
+                                 console.error('Error processing pending move event:', err);
+                             });
+                        }
+                    }, 8);
+                }
+                return;
+            }
+            this.lastMoveTime = now;
+        } else if (msg.type === 'scroll') {
+            const now = Date.now();
+            if (now - this.lastScrollTime < 8) {
+                this.pendingScroll = msg;
+                if (!this.scrollTimer) {
+                    this.scrollTimer = setTimeout(() => {
+                        this.scrollTimer = null;
+                        if (this.pendingScroll) {
+                            const pending = this.pendingScroll;
+                            this.pendingScroll = null;
+                            this.handleMessage(pending).catch((err) => {
+                                 console.error('Error processing pending move event:', err);
+                             });
+                        }
+                    }, 8);
+                }
+                return;
+            }
+            this.lastScrollTime = now;
+        }
+
         switch (msg.type) {
 
             case 'move':
@@ -59,7 +114,13 @@ export class InputHandler {
 
             case 'click':
                 if (msg.button) {
-                    const btn = msg.button === 'left' ? Button.LEFT : msg.button === 'right' ? Button.RIGHT : Button.MIDDLE;
+                    const btn =
+                        msg.button === 'left'
+                            ? Button.LEFT
+                            : msg.button === 'right'
+                            ? Button.RIGHT
+                            : Button.MIDDLE;
+
                     if (msg.press) {
                         await mouse.pressButton(btn);
                     } else {
@@ -208,7 +269,7 @@ export class InputHandler {
 
                     try {
                         for (const k of nutKeys) {
-                            if (typeof k === "string") {
+                            if (typeof k === 'string') {
                                 await keyboard.type(k);
                             } else {
                                 await keyboard.pressKey(k);
@@ -216,7 +277,9 @@ export class InputHandler {
                             }
                         }
 
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                        await new Promise(resolve =>
+                            setTimeout(resolve, 10)
+                        );
                     } finally {
                         for (const k of pressedKeys.reverse()) {
                             await keyboard.releaseKey(k);
