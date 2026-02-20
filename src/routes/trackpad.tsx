@@ -320,6 +320,9 @@ function TrackpadPage() {
                     className="opacity-0 absolute bottom-0 pointer-events-none h-0 w-0"
                     onKeyDown={handleKeyDown}
                     onChange={handleInput}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionUpdate={handleCompositionUpdate}
+                    onCompositionEnd={handleCompositionEnd}
                     autoFocus
                     autoComplete="on"
                     autoCorrect="off"
