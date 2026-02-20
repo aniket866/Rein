@@ -8,7 +8,7 @@ export const BufferBar: React.FC<BufferBarProps> = ({ bufferText }) => {
 	if (!bufferText) return null;
 
 	return (
-		<div className="shrink-0 flex items-center gap-2 px-3 py-[5px] overflow-x-auto bg-[linear-gradient(90deg,`#1a1040`,`#0f1a2e`)] border-t border-t-[rgba(139,92,246,0.3)] border-b border-b-[rgba(139,92,246,0.15)]">
+		<div className="shrink-0 flex items-center gap-2 px-3 py-[5px] overflow-x-auto bg-linear-90 from-[`#1a1040`] to-[`#0f1a2e`] border-t border-t-[rgba(139,92,246,0.3)] border-b border-b-[rgba(139,92,246,0.15)]">
 			<span className="text-[10px] font-mono text-[`#a78bfa`] font-bold tracking-[0.08em] uppercase opacity-70 whitespace-nowrap">
 				COMBO
 			</span>
