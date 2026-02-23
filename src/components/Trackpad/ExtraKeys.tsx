@@ -42,7 +42,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
         { icon: <FaBackspace />, key: "backspace", type: "action", label: "Backspace" },
 
         { label: "Ctrl", key: "control", type: "mod" },
-        { label: "Menu", key: "contextmenu", type: "mod" },
+        { label: "Menu", key: "menu", type: "mod" },
         { label: "Del", key: "delete", type: "action" },
         { icon: <FaArrowLeft />, key: "arrowleft", type: "arrow", label: "Left" },
         { icon: <FaArrowDown />, key: "arrowdown", type: "arrow", label: "Down" },

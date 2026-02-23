@@ -22,7 +22,7 @@ const CursorIcon = () => (
 );
 
 const MouseIcon = ({ side }: { side: "L" | "R" }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 3, lineHeight: 1 }}>
+    <div className="flex items-center gap-[3px] leading-none">
         <svg width="14" height="18" viewBox="0 0 14 22" fill="none" stroke="currentColor" strokeWidth="1.4">
             <rect x="0.7" y="0.7" width="12.6" height="20.6" rx="6.3" />
             <line x1="7" y1="0.7" x2="7" y2="10.5" />
@@ -30,7 +30,7 @@ const MouseIcon = ({ side }: { side: "L" | "R" }) => (
                 ? <rect x="0.7" y="0.7" width="6.3" height="9.8" rx="6.3" fill="currentColor" opacity="0.4" stroke="none" />
                 : <rect x="7" y="0.7" width="6.3" height="9.8" rx="6.3" fill="currentColor" opacity="0.4" stroke="none" />}
         </svg>
-        <span style={{ fontSize: 12, fontWeight: 800 }}>{side}</span>
+        <span className="text-[12px] font-extrabold">{side}</span>
     </div>
 );
 
@@ -51,13 +51,25 @@ const PasteIcon = () => (
 );
 
 const KeyboardIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
         <rect x="2" y="6" width="20" height="12" rx="2" />
+
+        {/* Top row keys */}
         <circle cx="6" cy="10" r="0.9" fill="currentColor" stroke="none" />
         <circle cx="10" cy="10" r="0.9" fill="currentColor" stroke="none" />
         <circle cx="14" cy="10" r="0.9" fill="currentColor" stroke="none" />
         <circle cx="18" cy="10" r="0.9" fill="currentColor" stroke="none" />
+
+        {/* Bottom row */}
         <circle cx="6" cy="14" r="0.9" fill="currentColor" stroke="none" />
         <line x1="9" y1="14" x2="15" y2="14" strokeWidth="1.8" />
         <circle cx="18" cy="14" r="0.9" fill="currentColor" stroke="none" />
@@ -67,7 +79,6 @@ const KeyboardIcon = () => (
 export const ControlBar: React.FC<ControlBarProps> = ({
     scrollMode,
     modifier,
-    buffer,
     onToggleScroll,
     onLeftClick,
     onRightClick,
@@ -80,86 +91,59 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         cb();
     };
 
-    const makeBtn = (color = "#c8d0e8", bg?: string): React.CSSProperties => ({
-        flex: 1,
-        minWidth: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 0,
-        background: bg || "transparent",
-        border: "none",
-        color,
-        cursor: "pointer",
-        padding: "11px 0",
-        outline: "none",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        touchAction: "none",
-        overflow: "hidden",
-        boxSizing: "border-box",
-    });
-
-    // HOLD background logic
-    const getHoldBg = () => {
-        if (modifier === "Active") return "#22c55e";
-        if (modifier === "Hold") return "#f59e0b";
-        return "transparent";
+    const getHoldClass = () => {
+        if (modifier === "Active") return "bg-success text-white";
+        if (modifier === "Hold") return "bg-warning text-white";
+        return "bg-transparent text-base-content";
     };
 
-    return (
-        <div style={{
-            background: "#1c1f2e",
-            borderBottom: "1px solid #2a2d40",
-            display: "flex",
-            alignItems: "stretch",
-            width: "100%",
-            boxSizing: "border-box",
-        }}>
+    const baseBtn =
+        "flex-1 min-w-0 flex items-center justify-center py-[11px] " +
+        "select-none touch-none overflow-hidden box-border cursor-pointer " +
+        "border-0 outline-none bg-transparent text-[#c8d0e8]";
 
-            {/* 1 · Cursor / Scroll toggle */}
+    return (
+        <div className="flex items-stretch w-full bg-base-200 border-b border-base-300">
+
             <button
-                style={makeBtn(scrollMode ? "#a78bfa" : "#c8d0e8")}
+                className={`${baseBtn} ${scrollMode ? "text-primary" : ""}`}
                 onPointerDown={(e) => prevent(e, onToggleScroll)}
             >
                 <CursorIcon />
             </button>
 
-            {/* 2 · Left click */}
-            <button style={makeBtn()} onPointerDown={(e) => prevent(e, onLeftClick)}>
+            <button
+                className={baseBtn}
+                onPointerDown={(e) => prevent(e, onLeftClick)}
+            >
                 <MouseIcon side="L" />
             </button>
 
-            {/* 3 · Right click */}
-            <button style={makeBtn()} onPointerDown={(e) => prevent(e, onRightClick)}>
+            <button
+                className={baseBtn}
+                onPointerDown={(e) => prevent(e, onRightClick)}
+            >
                 <MouseIcon side="R" />
             </button>
 
-            {/* 4 · Copy */}
-            <button style={makeBtn()}>
+            <button className={baseBtn}>
                 <CopyIcon />
             </button>
 
-            {/* 5 · Paste */}
-            <button style={makeBtn()}>
+            <button className={baseBtn}>
                 <PasteIcon />
             </button>
 
-            {/* 6 · Keyboard toggle */}
-            <button style={makeBtn()} onPointerDown={(e) => prevent(e, onKeyboardToggle)}>
+            <button
+                className={baseBtn}
+                onPointerDown={(e) => prevent(e, onKeyboardToggle)}
+            >
                 <KeyboardIcon />
             </button>
 
-            {/* 7 · HOLD */}
             <button
-                style={{
-                    ...makeBtn("#ffffff", getHoldBg()),
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 6,
-                    margin: "4px",
-                    flex: 0.8
-                }}
+                className={`flex-none px-3 py-[11px] m-1 rounded-md text-xs font-bold 
+                           ${getHoldClass()}`}
                 onPointerDown={(e) => prevent(e, onModifierToggle)}
             >
                 HOLD

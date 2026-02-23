@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { useRemoteConnection } from '../hooks/useRemoteConnection';
-import { useTrackpadGesture } from '../hooks/useTrackpadGesture';
-import { ControlBar } from '../components/Trackpad/ControlBar';
-import { ExtraKeys } from '../components/Trackpad/ExtraKeys';
-import { TouchArea } from '../components/Trackpad/TouchArea';
+import { useRemoteConnection } from '@/hooks/useRemoteConnection';
+import { useTrackpadGesture } from '@/hooks/useTrackpadGesture';
+import { ControlBar } from '@/components/Trackpad/ControlBar';
+import { ExtraKeys } from '@/components/Trackpad/ExtraKeys';
+import { TouchArea } from '@/components/Trackpad/TouchArea';
 import { BufferBar } from '@/components/Trackpad/Buffer';
 import { ModifierState } from '@/types';
 
@@ -115,8 +115,11 @@ function TrackpadPage() {
     };
 
     const handleModifier = (key: string) => {
+        console.log(`handleModifier called with key: ${key}, current modifier: ${modifier}, buffer:`, buffer);
+
         if (modifier === "Hold") {
             const comboKeys = [...buffer, key];
+            console.log(`Sending combo:`, comboKeys);
             sendCombo(comboKeys);
             return;
         } else if (modifier === "Active") {
@@ -124,6 +127,7 @@ function TrackpadPage() {
             return;
         }
     };
+
 
     const sendText = (val: string) => {
         if (!val) return;
@@ -152,56 +156,32 @@ function TrackpadPage() {
         isComposingRef.current = false;
         const val = (e.target as HTMLInputElement).value;
         if (val) {
-            if (modifier !== "Release") {
-                handleModifier(val);
-            } else {
-                sendText(val);
-            }
+            modifier !== "Release" ? handleModifier(val) : sendText(val);
             (e.target as HTMLInputElement).value = '';
         }
     };
 
     return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                position: "fixed",
-                inset: 0,
-                background: "#0d0d0f",
-                overflow: "hidden",
-            }}
-        >
-            {/* TOUCH AREA — takes all remaining space */}
-            <div style={{
-                flex: 1,
-                minHeight: 0,
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                borderBottom: "1px solid #2a2d40",
-            }}>
+        <div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
+
+            {/* TOUCH AREA */}
+            <div className="flex-1 min-h-0 relative flex flex-col border-b border-base-200">
                 <TouchArea
                     isTracking={isTracking}
                     scrollMode={scrollMode}
                     handlers={handlers}
                     status={status}
                 />
-                {bufferText !== "" && (
-                    <div style={{
-                        position: "absolute",
-                        bottom: 16,
-                        left: 0,
-                        right: 0,
-                        padding: "0 16px",
-                    }}>
+
+                {bufferText && (
+                    <div className="absolute bottom-4 left-0 right-0 px-4">
                         <BufferBar bufferText={bufferText} />
                     </div>
                 )}
             </div>
 
             {/* CONTROL BAR */}
-            <div style={{ flexShrink: 0, borderBottom: "1px solid #2a2d40" }}>
+            <div className="shrink-0 border-b border-base-200">
                 <ControlBar
                     scrollMode={scrollMode}
                     modifier={modifier}
@@ -217,20 +197,13 @@ function TrackpadPage() {
                 />
             </div>
 
-            {/*
-              EXTRA KEYS — collapses when hidden or keyboard is open.
-              Always mounted for smooth height transition.
-            */}
             {/* EXTRA KEYS */}
             <div
-                style={{
-                    flexShrink: 0,
-                    maxHeight: (!extraKeysVisible || keyboardOpen) ? "0px" : "50vh",
-                    overflow: "hidden",
-                    transition: "max-height 0.3s ease, opacity 0.2s ease",
-                    opacity: (!extraKeysVisible || keyboardOpen) ? 0 : 1,
-                    pointerEvents: (!extraKeysVisible || keyboardOpen) ? "none" : "auto",
-                }}
+                className={`shrink-0 overflow-hidden transition-all duration-300
+                ${(!extraKeysVisible || keyboardOpen)
+                    ? "max-h-0 opacity-0 pointer-events-none"
+                    : "max-h-[50vh] opacity-100"
+                }`}
             >
                 <ExtraKeys
                     sendKey={(k) => {
@@ -244,14 +217,7 @@ function TrackpadPage() {
             {/* HIDDEN INPUT — focused when keyboard is open, works for both mobile (native keyboard) and laptop (physical keyboard) */}
             <input
                 ref={hiddenInputRef}
-                style={{
-                    opacity: 0,
-                    position: "absolute",
-                    bottom: 0,
-                    pointerEvents: "none",
-                    height: 0,
-                    width: 0,
-                }}
+                className="absolute bottom-0 w-0 h-0 opacity-0 pointer-events-none"
                 onKeyDown={handleKeyDown}
                 onChange={handleInput}
                 onCompositionStart={handleCompositionStart}
