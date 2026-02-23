@@ -1,5 +1,6 @@
 import { mouse, Point, Button, keyboard, Key } from '@nut-tree-fork/nut-js';
 import { KEY_MAP } from './KeyMap';
+import { YdotoolFallback } from './ydotool';
 
 export interface InputMessage {
     type: 'move' | 'click' | 'scroll' | 'key' | 'text' | 'zoom' | 'combo';
@@ -26,6 +27,8 @@ export class InputHandler {
     }
 
     async handleMessage(msg: InputMessage) {
+        const useYdotool = await YdotoolFallback.isAvailable();
+
         // Validation: Text length sanitation
         if (msg.text && msg.text.length > 500) {
             msg.text = msg.text.substring(0, 500);
@@ -89,33 +92,46 @@ export class InputHandler {
                     Number.isFinite(msg.dx) &&
                     Number.isFinite(msg.dy)
                 ) {
-                    const currentPos = await mouse.getPosition();
+                    if (useYdotool) {
+                        await YdotoolFallback.move(msg.dx, msg.dy);
+                    } else {
+                        const currentPos = await mouse.getPosition();
 
-                    await mouse.setPosition(new Point(
-                        Math.round(currentPos.x + msg.dx),
-                        Math.round(currentPos.y + msg.dy)
-                    ));
+                        await mouse.setPosition(new Point(
+                            Math.round(currentPos.x + msg.dx),
+                            Math.round(currentPos.y + msg.dy)
+                        ));
+                    }
                 }
                 break;
 
             case 'click':
                 if (msg.button) {
-                    const btn =
-                        msg.button === 'left'
-                            ? Button.LEFT
-                            : msg.button === 'right'
-                            ? Button.RIGHT
-                            : Button.MIDDLE;
-
-                    if (msg.press) {
-                        await mouse.pressButton(btn);
+                    if (useYdotool) {
+                        await YdotoolFallback.click(msg.button, !!msg.press);
                     } else {
-                        await mouse.releaseButton(btn);
+                        const btn =
+                            msg.button === 'left'
+                                ? Button.LEFT
+                                : msg.button === 'right'
+                                ? Button.RIGHT
+                                : Button.MIDDLE;
+
+                        if (msg.press) {
+                            await mouse.pressButton(btn);
+                        } else {
+                            await mouse.releaseButton(btn);
+                        }
                     }
                 }
                 break;
 
             case 'scroll': {
+                if (useYdotool) {
+                    await YdotoolFallback.scroll(msg.dx || 0, msg.dy || 0);
+                    break;
+                }
+
                 const promises: Promise<void>[] = [];
 
                 // Vertical scroll
@@ -159,15 +175,19 @@ export class InputHandler {
                     const amount = Math.round(-scaledDelta);
 
                     if (amount !== 0) {
-                        await keyboard.pressKey(Key.LeftControl);
-                        try {
-                            if (amount > 0) {
-                                await mouse.scrollDown(amount);
-                            } else {
-                                await mouse.scrollUp(-amount);
+                        if (useYdotool) {
+                            await YdotoolFallback.zoom(amount);
+                        } else {
+                            await keyboard.pressKey(Key.LeftControl);
+                            try {
+                                if (amount > 0) {
+                                    await mouse.scrollDown(amount);
+                                } else {
+                                    await mouse.scrollUp(-amount);
+                                }
+                            } finally {
+                                await keyboard.releaseKey(Key.LeftControl);
                             }
-                        } finally {
-                            await keyboard.releaseKey(Key.LeftControl);
                         }
                     }
                 }
@@ -176,71 +196,84 @@ export class InputHandler {
             case 'key':
                 if (msg.key) {
                     console.log(`Processing key: ${msg.key}`);
-                    const nutKey = KEY_MAP[msg.key.toLowerCase()];
-
-                    if (nutKey !== undefined) {
-                        await keyboard.type(nutKey);
-                    } else if (msg.key.length === 1) {
-                        await keyboard.type(msg.key);
+                    if (useYdotool) {
+                        await YdotoolFallback.key(msg.key);
                     } else {
-                        console.log(`Unmapped key: ${msg.key}`);
+                        const nutKey = KEY_MAP[msg.key.toLowerCase()];
+
+                        if (nutKey !== undefined) {
+                            await keyboard.type(nutKey);
+                        } else if (msg.key.length === 1) {
+                            await keyboard.type(msg.key);
+                        } else {
+                            console.log(`Unmapped key: ${msg.key}`);
+                        }
                     }
                 }
                 break;
 
             case 'combo':
                 if (msg.keys && msg.keys.length > 0) {
-                    const nutKeys: (Key | string)[] = [];
+                    if (useYdotool) {
+                        await YdotoolFallback.combo(msg.keys);
+                    } else {
+                        const nutKeys: (Key | string)[] = [];
 
-                    for (const k of msg.keys) {
-                        const lowerKey = k.toLowerCase();
-                        const nutKey = KEY_MAP[lowerKey];
+                        for (const k of msg.keys) {
+                            const lowerKey = k.toLowerCase();
+                            const nutKey = KEY_MAP[lowerKey];
 
-                        if (nutKey !== undefined) {
-                            nutKeys.push(nutKey);
-                        } else if (lowerKey.length === 1) {
-                            nutKeys.push(lowerKey);
-                        } else {
-                            console.warn(`Unknown key in combo: ${k}`);
-                        }
-                    }
-
-                    if (nutKeys.length === 0) {
-                        console.error('No valid keys in combo');
-                        return;
-                    }
-
-                    console.log(`Pressing keys:`, nutKeys);
-                    const pressedKeys: Key[] = [];
-
-                    try {
-                        for (const k of nutKeys) {
-                            if (typeof k === 'string') {
-                                await keyboard.type(k);
+                            if (nutKey !== undefined) {
+                                nutKeys.push(nutKey);
+                            } else if (lowerKey.length === 1) {
+                                nutKeys.push(lowerKey);
                             } else {
-                                await keyboard.pressKey(k);
-                                pressedKeys.push(k);
+                                console.warn(`Unknown key in combo: ${k}`);
                             }
                         }
 
-                        await new Promise(resolve =>
-                            setTimeout(resolve, 10)
-                        );
-                    } finally {
-                        for (const k of pressedKeys.reverse()) {
-                            await keyboard.releaseKey(k);
+                        if (nutKeys.length === 0) {
+                            console.error('No valid keys in combo');
+                            return;
                         }
-                    }
+
+                        console.log(`Pressing keys:`, nutKeys);
+                        const pressedKeys: Key[] = [];
+
+                        try {
+                            for (const k of nutKeys) {
+                                if (typeof k === 'string') {
+                                    await keyboard.type(k);
+                                } else {
+                                    await keyboard.pressKey(k);
+                                    pressedKeys.push(k);
+                                }
+                            }
+
+                            await new Promise(resolve =>
+                                setTimeout(resolve, 10)
+                            );
+                        } finally {
+                            for (const k of pressedKeys.reverse()) {
+                                await keyboard.releaseKey(k);
+                            }
+                        }
 
                     console.log(`Combo complete: ${msg.keys.join('+')}`);
+                    }
                 }
                 break;
 
             case 'text':
                 if (msg.text) {
-                    await keyboard.type(msg.text);
+                    if (useYdotool) {
+                        await YdotoolFallback.text(msg.text);
+                    } else {
+                        await keyboard.type(msg.text);
+                    }
                 }
                 break;
         }
     }
 }
+    
