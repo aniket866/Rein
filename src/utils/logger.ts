@@ -1,8 +1,9 @@
 // src/utils/logger.ts
-import winston from "winston";
-import path from "node:path";
-import os from "node:os";
+
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import winston from "winston";
 
 // dynamic log path (similar to logPath() requirement)
 const HOMEDIR = os.homedir();

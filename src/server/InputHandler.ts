@@ -1,4 +1,4 @@
-import { mouse, Point, Button, keyboard, Key } from "@nut-tree-fork/nut-js";
+import { Button, Key, keyboard, mouse, Point } from "@nut-tree-fork/nut-js";
 import { KEY_MAP } from "./KeyMap";
 
 export interface InputMessage {

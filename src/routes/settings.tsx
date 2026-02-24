@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
 import QRCode from "qrcode";
-import { CONFIG, APP_CONFIG, THEMES } from "../config";
+import { useEffect, useState } from "react";
+import { APP_CONFIG, CONFIG, THEMES } from "../config";
 
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,

@@ -1,5 +1,5 @@
-import type { ModifierState } from "@/types";
 import type React from "react";
+import type { ModifierState } from "@/types";
 
 interface ControlBarProps {
 	scrollMode: boolean;

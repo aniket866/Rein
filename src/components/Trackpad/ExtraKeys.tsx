@@ -1,18 +1,18 @@
 import type React from "react";
 import { useState } from "react";
 import {
-	FaVolumeMute,
-	FaVolumeDown,
-	FaVolumeUp,
-	FaPlay,
-	FaPause,
-	FaArrowUp,
 	FaArrowDown,
 	FaArrowLeft,
 	FaArrowRight,
+	FaArrowUp,
 	FaBackspace,
 	FaBackward,
 	FaForward,
+	FaPause,
+	FaPlay,
+	FaVolumeDown,
+	FaVolumeMute,
+	FaVolumeUp,
 } from "react-icons/fa";
 import { MdSpaceBar } from "react-icons/md";
 

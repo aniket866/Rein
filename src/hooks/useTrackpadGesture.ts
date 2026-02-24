@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import {
+	calculateAccelerationMult,
+	PINCH_THRESHOLD,
 	TOUCH_MOVE_THRESHOLD,
 	TOUCH_TIMEOUT,
-	PINCH_THRESHOLD,
-	calculateAccelerationMult,
 } from "../utils/math";
 
 interface TrackedTouch {

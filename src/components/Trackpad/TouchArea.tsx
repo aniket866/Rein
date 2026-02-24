@@ -26,6 +26,7 @@ export const TouchArea: React.FC<TouchAreaProps> = ({
 	};
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: trackpad surface is intentionally interactive
 		<div
 			className="flex-1 bg-neutral-800 relative touch-none select-none flex items-center justify-center p-4"
 			onTouchStart={handleStart}

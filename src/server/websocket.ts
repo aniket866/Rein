@@ -1,18 +1,17 @@
-import { WebSocketServer, type WebSocket } from "ws";
+import fs from "node:fs";
+import type { Server as HttpServer, IncomingMessage } from "node:http";
+import type { Socket } from "node:net";
+import os from "node:os";
+import { type WebSocket, WebSocketServer } from "ws";
+import logger from "../utils/logger";
 import { InputHandler, type InputMessage } from "./InputHandler";
 import {
-	storeToken,
-	isKnownToken,
-	touchToken,
 	generateToken,
 	getActiveToken,
+	isKnownToken,
+	storeToken,
+	touchToken,
 } from "./tokenStore";
-import os from "node:os";
-import fs from "node:fs";
-import type { IncomingMessage } from "node:http";
-import type { Socket } from "node:net";
-import logger from "../utils/logger";
-import type { Server as HttpServer } from "node:http";
 
 function getLocalIp(): string {
 	const nets = os.networkInterfaces();
