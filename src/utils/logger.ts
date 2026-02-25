@@ -11,36 +11,12 @@ const LOG_DIR = path.join(HOMEDIR, ".rein");
 const LOG_FILE = path.join(LOG_DIR, "log.txt");
 // Ensure the log directory exists before Winston tries to open the file
 try {
-let fileLoggingAvailable = true;
-try {
 	fs.mkdirSync(LOG_DIR, { recursive: true });
 } catch (err: unknown) {
-	fileLoggingAvailable = false;
 	// If we can't create the log dir, fall back to stderr only — don't crash.
 	process.stderr.write(
 		`[logger] Failed to create log directory ${LOG_DIR}: ${err instanceof Error ? err.message : String(err)}\n`,
 	);
-}
-
-const fileTransports = fileLoggingAvailable
-	? [new winston.transports.File({ filename: LOG_FILE })]
-	: [];
-
-const logger = winston.createLogger({
-	level: "info",
-	format: winston.format.combine(
-		winston.format.timestamp(),
-		winston.format.json(),
-	),
-	defaultMeta: { service: "rein-server" },
-	transports: fileTransports,
-	exceptionHandlers: fileLoggingAvailable
-		? [new winston.transports.File({ filename: LOG_FILE })]
-		: [],
-	rejectionHandlers: fileLoggingAvailable
-		? [new winston.transports.File({ filename: LOG_FILE })]
-		: [],
-});
 }
 
 // Ensure the logger handles uncaught exceptions and rejections
