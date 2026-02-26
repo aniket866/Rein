@@ -20,7 +20,6 @@ function TrackpadPage() {
 	const hiddenInputRef = useRef<HTMLInputElement>(null)
 	const [keyboardOpen, setKeyboardOpen] = useState(false)
 	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
-	const isComposingRef = useRef(false)
 
 	// Load Client Settings
 	const [sensitivity] = useState(() => {
@@ -55,12 +54,6 @@ function TrackpadPage() {
 
 	const toggleKeyboard = () => {
 		setKeyboardOpen((prev) => !prev)
-	}
-
-	const focusInputSilent = () => {
-		if (keyboardOpen) {
-			hiddenInputRef.current?.focus()
-		}
 	}
 
 	const focusInput = () => {

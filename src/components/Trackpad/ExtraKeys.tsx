@@ -18,7 +18,7 @@ import { MdSpaceBar } from "react-icons/md"
 
 interface ExtraKeysProps {
 	sendKey: (key: string) => void
-	onInputFocus?: () => void
+	onInputFocus: () => void
 }
 
 export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
@@ -47,6 +47,7 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({ sendKey }) => {
 		{
 			icon: isPlaying ? <FaPause /> : <FaPlay />,
 			action: handlePlayPause,
+			key: "playpause",
 			type: "media",
 			label: "Play/Pause",
 		},

@@ -169,7 +169,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 			className={`flex items-center justify-center w-[48px] h-[36px] transition-all duration-100 ${
 				modifier === "Hold"
 					? "!bg-neutral-900 hover:!bg-neutral-800 active:!bg-neutral-800"
-					: "btn " + getModifierButtonClass()
+					: `btn ${getModifierButtonClass()}`
 			}`}
 			onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
 		>
