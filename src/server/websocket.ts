@@ -106,7 +106,7 @@ export function createWsServer(server: unknown) {
 
 			let lastRaw = ""
 			let lastTime = 0
-			const DUPLICATE_WINDOW_MS = 10
+			const DUPLICATE_WINDOW_MS = 8
 			let lastTokenTouch = 0
 
 			ws.on("message", async (data: WebSocket.RawData) => {
@@ -269,8 +269,7 @@ export function createWsServer(server: unknown) {
 					await inputHandler.handleMessage(msg as InputMessage)
 				} catch (err: unknown) {
 					logger.error(
-						`Error processing message: ${
-							err instanceof Error ? err.message : String(err)
+						`Error processing message: ${err instanceof Error ? err.message : String(err)
 						}`,
 					)
 				}
