@@ -189,7 +189,6 @@ function TrackpadPage() {
 		}
 	}
 
-
 	return (
 		<div className="flex flex-col h-full min-h-0 bg-base-300 overflow-hidden">
 			{/* TOUCH AREA */}
