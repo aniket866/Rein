@@ -11,6 +11,11 @@ interface ScreenMirrorProps {
 	handlers: React.HTMLAttributes<HTMLDivElement>
 }
 
+const TEXTS = {
+	WAITING: "Waiting for screen...",
+	AUTOMATIC: "Mirroring will start automatically",
+}
+
 export const ScreenMirror = ({
 	scrollMode,
 	isTracking,
@@ -35,10 +40,8 @@ export const ScreenMirror = ({
 				<div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-4">
 					<div className="loading loading-spinner loading-lg text-primary" />
 					<div className="text-center px-6">
-						<p className="font-semibold text-lg">Waiting for screen...</p>
-						<p className="text-sm opacity-60">
-							Mirroring will start automatically
-						</p>
+						<p className="font-semibold text-lg">{TEXTS.WAITING}</p>
+						<p className="text-sm opacity-60">{TEXTS.AUTOMATIC}</p>
 					</div>
 				</div>
 			)}

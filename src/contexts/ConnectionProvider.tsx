@@ -51,6 +51,8 @@ export function ConnectionProvider({
 		[],
 	)
 
+	const reconnectCountRef = useRef(0)
+
 	const connect = useCallback(() => {
 		if (!isMountedRef.current) return
 
@@ -58,11 +60,22 @@ export function ConnectionProvider({
 		const host = window.location.host
 		const urlParams = new URLSearchParams(window.location.search)
 		const urlToken = urlParams.get("token")
-		const storedToken = localStorage.getItem("rein_auth_token")
+
+		let storedToken: string | null = null
+		try {
+			storedToken = localStorage.getItem("rein_auth_token")
+		} catch (e) {
+			// Restricted context (e.g. private mode)
+		}
+
 		const token = urlToken || storedToken
 
 		if (urlToken && urlToken !== storedToken) {
-			localStorage.setItem("rein_auth_token", urlToken)
+			try {
+				localStorage.setItem("rein_auth_token", urlToken)
+			} catch (e) {
+				// Failed to store
+			}
 		}
 
 		let wsUrl = `${protocol}//${host}/ws`
@@ -81,7 +94,10 @@ export function ConnectionProvider({
 		const socket = new WebSocket(wsUrl)
 
 		socket.onopen = () => {
-			if (isMountedRef.current) setStatus("connected")
+			if (isMountedRef.current) {
+				setStatus("connected")
+				reconnectCountRef.current = 0 // Reset on successful connect
+			}
 		}
 
 		socket.onmessage = (event) => {
@@ -112,7 +128,13 @@ export function ConnectionProvider({
 		socket.onclose = () => {
 			if (isMountedRef.current) {
 				setStatus("disconnected")
-				setTimeout(connect, 3000)
+				// Exponential Backoff
+				const delay = Math.min(
+					1000 * 2 ** reconnectCountRef.current,
+					30000, // Max 30s
+				)
+				reconnectCountRef.current += 1
+				setTimeout(connect, delay)
 			}
 		}
 

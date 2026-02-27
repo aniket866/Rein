@@ -19,7 +19,7 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 			streamRef.current = null
 		}
 		if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-			wsRef.current.send(JSON.stringify({ type: "stop-mirror" }))
+			wsRef.current.send(JSON.stringify({ type: "stop-provider" }))
 		}
 		setIsSharing(false)
 	}, [wsRef])
@@ -121,8 +121,11 @@ export function useCaptureProvider(wsRef: React.RefObject<WebSocket | null>) {
 			if (streamRef.current) {
 				for (const track of streamRef.current.getTracks()) track.stop()
 			}
+			if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+				wsRef.current.send(JSON.stringify({ type: "stop-provider" }))
+			}
 		}
-	}, [])
+	}, [wsRef])
 
 	return {
 		isSharing,

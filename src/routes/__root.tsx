@@ -5,7 +5,7 @@ import {
 	Scripts,
 	createRootRoute,
 } from "@tanstack/react-router"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { APP_CONFIG, THEMES } from "../config"
 import "../styles.css"
 import {
@@ -47,15 +47,17 @@ function RootComponent() {
 function DesktopCaptureProvider() {
 	const { wsRef, status } = useConnection()
 	const { startSharing } = useCaptureProvider(wsRef)
+	const hasStartedRef = useRef(false)
 
 	useEffect(() => {
-		if (status !== "connected") return
+		if (status !== "connected" || hasStartedRef.current) return
 
 		// Mobile detection: avoid auto-start on mobile
 		const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 		const canShare = !!navigator.mediaDevices?.getDisplayMedia
 
 		if (!isMobile && canShare) {
+			hasStartedRef.current = true
 			startSharing()
 		}
 	}, [status, startSharing])
