@@ -6,6 +6,8 @@ on:
     branches: [main]
   pull_request_review:
     types: [submitted]
+  check_suite:
+    types: [completed]
 
 permissions:
   pull-requests: write
@@ -25,9 +27,13 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
-            const pull_number =
-              context.payload.pull_request?.number ||
-              context.payload.review?.pull_request_url?.split("/").pop();
+            let pull_number =
+              context.payload.pull_request?.number;
+
+            // Handle check_suite event
+            if (!pull_number && context.payload.check_suite?.pull_requests?.length > 0) {
+              pull_number = context.payload.check_suite.pull_requests[0].number;
+            }
 
             if (!pull_number) {
               console.log("No PR context found.");
@@ -41,18 +47,18 @@ jobs:
             });
 
             if (fullPR.mergeable_state === "unknown") {
-              console.log("Mergeable state not computed yet.");
+              console.log("Mergeable state not ready.");
               return;
             }
 
             let shouldDraft = false;
 
-            // Merge conflicts
+            // Merge conflict
             if (fullPR.mergeable_state === "dirty") {
               shouldDraft = true;
             }
 
-            // Not up to date with base branch
+            // Behind base
             if (fullPR.mergeable_state === "behind") {
               shouldDraft = true;
             }
@@ -65,15 +71,11 @@ jobs:
                 pull_number
               });
 
-            const changesRequested = reviews.some(
-              r => r.state === "CHANGES_REQUESTED"
-            );
-
-            if (changesRequested) {
+            if (reviews.some(r => r.state === "CHANGES_REQUESTED")) {
               shouldDraft = true;
             }
 
-            // Unresolved review threads
+            // Unresolved threads
             const threadData = await github.graphql(`
               query($owner:String!, $repo:String!, $number:Int!) {
                 repository(owner:$owner, name:$repo) {
@@ -96,7 +98,7 @@ jobs:
               shouldDraft = true;
             }
 
-            // CI / status checks
+            // CI combined status
             const { data: combinedStatus } =
               await github.rest.repos.getCombinedStatusForRef({
                 owner,
@@ -108,7 +110,7 @@ jobs:
               shouldDraft = true;
             }
 
-            // Apply state change
+            // Apply change
             if (shouldDraft && !fullPR.draft) {
               await github.rest.pulls.update({
                 owner,
@@ -117,8 +119,7 @@ jobs:
                 draft: true
               });
               console.log("Converted to Draft.");
-            } 
-            else if (!shouldDraft && fullPR.draft) {
+            } else if (!shouldDraft && fullPR.draft) {
               await github.rest.pulls.update({
                 owner,
                 repo,
@@ -126,7 +127,6 @@ jobs:
                 draft: false
               });
               console.log("Marked Ready for Review.");
-            } 
-            else {
+            } else {
               console.log("No state change needed.");
             }
