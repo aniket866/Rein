@@ -279,8 +279,9 @@ The project uses [Biome](https://biomejs.dev/) for formatting and linting.
 
 ## 🎯 Issue Assignment
 
-- One contributor per issue (unless specified otherwise)
+- One contributor per issue, unless labeled `Opem to All` or specified otherwise.
 - Do not ask for assignment. If an issue has no PR activity for 2+ days, and you have the clarity to handle it, share your approach under the issue and begin.
+- Author can immediately start working on the issues they open.
 - Avoid working on issues which are assigned to someone, even if they are inactive
 - Check for existing PRs before starting to avoid duplication, as there might be PRs that didn't mention the related issue
 - Check pinned issues for issues needing immediate attention.
