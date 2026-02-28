@@ -1,7 +1,7 @@
 import { BufferBar } from "@/components/Trackpad/Buffer"
 import type { ModifierState } from "@/types"
 import { createFileRoute } from "@tanstack/react-router"
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { ControlBar } from "../components/Trackpad/ControlBar"
 import { ExtraKeys } from "../components/Trackpad/ExtraKeys"
 import { TouchArea } from "../components/Trackpad/TouchArea"
@@ -13,16 +13,22 @@ export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
 })
 
+type BottomPanel = "extrakeys" | "keyboard" | "hidden"
+
 function TrackpadPage() {
 	const [scrollMode, setScrollMode] = useState(false)
 	const [modifier, setModifier] = useState<ModifierState>("Release")
 	const [buffer, setBuffer] = useState<string[]>([])
 	const bufferText = buffer.join(" + ")
 	const hiddenInputRef = useRef<HTMLInputElement>(null)
-	const [keyboardOpen, setKeyboardOpen] = useState(false)
-	const [extraKeysVisible, setExtraKeysVisible] = useState(true)
+	const clipboardInputRef = useRef<HTMLTextAreaElement>(null)
 
-	// Load Client Settings
+	// Single source of truth for bottom panel state — no more two-state conflicts
+	const [bottomPanel, setBottomPanel] = useState<BottomPanel>("extrakeys")
+
+	const pcClipboardRef = useRef<string | null>(null)
+	const [copyStatus, setCopyStatus] = useState<"idle" | "ok" | "fail">("idle")
+
 	const [sensitivity] = useState(() => {
 		if (typeof window === "undefined") return 1.0
 		const s = localStorage.getItem("rein_sensitivity")
@@ -35,8 +41,9 @@ function TrackpadPage() {
 		return s ? JSON.parse(s) : false
 	})
 
-	const { status, send, sendCombo } = useRemoteConnection()
+	const { status, send, sendCombo, subscribe } = useRemoteConnection()
 	// Pass sensitivity and invertScroll to the gesture hook
+
 	const { isTracking, handlers } = useTrackpadGesture(
 		send,
 		scrollMode,
@@ -44,27 +51,100 @@ function TrackpadPage() {
 		invertScroll,
 	)
 
-	// When keyboardOpen changes, focus or blur the hidden input
+	// Derived booleans from single state
+	const keyboardOpen = bottomPanel === "keyboard"
+	const extraKeysVisible = bottomPanel === "extrakeys"
+
+	// Focus/blur hidden input based on keyboard state
 	useEffect(() => {
 		if (keyboardOpen) {
-			hiddenInputRef.current?.focus()
+			// Small delay so the state settles before focusing
+			setTimeout(() => hiddenInputRef.current?.focus(), 50)
 		} else {
 			hiddenInputRef.current?.blur()
 		}
 	}, [keyboardOpen])
 
-	const toggleKeyboard = () => {
-		setKeyboardOpen((prev) => !prev)
-	}
+	// Copy text to mobile clipboard — works on HTTP via execCommand
+	const copyToMobileClipboard = useCallback((text: string) => {
+		const el = clipboardInputRef.current
+		if (!el) return
+		try {
+			el.value = text
+			el.style.display = "block"
+			el.focus()
+			el.select()
+			el.setSelectionRange(0, text.length)
+			document.execCommand("copy")
+		} catch {}
+		el.style.display = "none"
+		// Don't refocus hiddenInput here — let keyboard state manage focus
+	}, [])
 
-	const focusInput = () => {
-		hiddenInputRef.current?.focus()
-	}
+	// Receive clipboard text from server silently
+	useEffect(() => {
+		const unsubscribe = subscribe("clipboard-sync", (msg: unknown) => {
+			const m = msg as { type: string; text: string }
+			if (typeof m.text === "string" && m.text.trim().length > 0) {
+				const text = m.text.trim()
+				pcClipboardRef.current = text
+
+				if (navigator.clipboard?.writeText) {
+					navigator.clipboard.writeText(text).catch(() => {
+						copyToMobileClipboard(text)
+					})
+				} else {
+					copyToMobileClipboard(text)
+				}
+
+				setCopyStatus("ok")
+				setTimeout(() => setCopyStatus("idle"), 1500)
+			} else {
+				setCopyStatus("fail")
+				setTimeout(() => setCopyStatus("idle"), 1500)
+			}
+		})
+		return unsubscribe
+	}, [subscribe, copyToMobileClipboard])
+
+	const focusInput = () => hiddenInputRef.current?.focus()
 
 	const handleClick = (button: "left" | "right") => {
 		send({ type: "click", button, press: true })
 		// Release after short delay to simulate click
 		setTimeout(() => send({ type: "click", button, press: false }), 50)
+	}
+
+	// Copy: fetch server clipboard silently, no panel change
+	const handleCopy = () => {
+		send({ type: "copy" })
+	}
+
+	const handlePaste = async () => {
+		if (pcClipboardRef.current) {
+			send({ type: "text", text: pcClipboardRef.current })
+			return
+		}
+		if (navigator.clipboard?.readText) {
+			try {
+				const text = await navigator.clipboard.readText()
+				if (text) {
+					send({ type: "text", text })
+					return
+				}
+			} catch {}
+		}
+		send({ type: "paste" })
+	}
+
+	// Keyboard toggle: switch between keyboard and extrakeys
+	const handleKeyboardToggle = () => {
+		setBottomPanel((prev) => (prev === "keyboard" ? "extrakeys" : "keyboard"))
+	}
+
+	// Extra keys toggle: switch between extrakeys and hidden
+	const handleExtraKeysToggle = () => {
+		setBottomPanel((prev) => (prev === "extrakeys" ? "hidden" : "extrakeys"))
 	}
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,16 +197,12 @@ function TrackpadPage() {
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		const key = e.key.toLowerCase()
 
-		// 1. Enter key fallback
 		if (key === "enter") {
 			send({ type: "key", key: "enter" })
-			if (hiddenInputRef.current) {
-				hiddenInputRef.current.value = " "
-			}
+			if (hiddenInputRef.current) hiddenInputRef.current.value = " "
 			return
 		}
 
-		// 2. Modifier Logic
 		if (modifier !== "Release") {
 			if (key === "escape") {
 				e.preventDefault()
@@ -150,14 +226,6 @@ function TrackpadPage() {
 		) {
 			send({ type: "key", key })
 		}
-	}
-
-	const handleCopy = () => {
-		send({ type: "copy" })
-	}
-
-	const handlePaste = async () => {
-		send({ type: "paste" })
 	}
 
 	const handleModifierState = () => {
@@ -208,6 +276,15 @@ function TrackpadPage() {
 					handlers={handlers}
 				/>
 				{bufferText !== "" && <BufferBar bufferText={bufferText} />}
+
+				{copyStatus !== "idle" && (
+					<div
+						className={`absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-medium shadow
+							${copyStatus === "ok" ? "bg-success text-success-content" : "bg-error text-error-content"}`}
+					>
+						{copyStatus === "ok" ? "✓ Clipboard synced" : "✗ Clipboard empty"}
+					</div>
+				)}
 			</div>
 
 			{/* CONTROL BAR */}
@@ -223,19 +300,19 @@ function TrackpadPage() {
 					onToggleScroll={() => setScrollMode(!scrollMode)}
 					onLeftClick={() => handleClick("left")}
 					onRightClick={() => handleClick("right")}
-					onKeyboardToggle={toggleKeyboard}
+					onKeyboardToggle={handleKeyboardToggle}
 					onModifierToggle={handleModifierState}
-					onExtraKeysToggle={() => setExtraKeysVisible((prev) => !prev)}
+					onExtraKeysToggle={handleExtraKeysToggle}
 				/>
 			</div>
 
+			{/* Extra keys — only shown when bottomPanel === "extrakeys" */}
 			<div
-				className={`shrink-0 overflow-hidden transition-all duration-300
-                ${
-									!extraKeysVisible || keyboardOpen
-										? "max-h-0 opacity-0 pointer-events-none"
-										: "max-h-[50vh] opacity-100"
-								}`}
+				className={`shrink-0 overflow-hidden transition-all duration-300 ${
+					extraKeysVisible
+						? "max-h-[50vh] opacity-100"
+						: "max-h-0 opacity-0 pointer-events-none"
+				}`}
 			>
 				{/* Extra Keys */}
 				<ExtraKeys
@@ -260,6 +337,13 @@ function TrackpadPage() {
 				spellCheck={false}
 				inputMode="text"
 				enterKeyHint="enter"
+			/>
+
+			<textarea
+				ref={clipboardInputRef}
+				tabIndex={-1}
+				readOnly
+				className="fixed top-0 left-0 w-px h-px opacity-0 pointer-events-none hidden text-base"
 			/>
 		</div>
 	)

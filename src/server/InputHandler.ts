@@ -1,6 +1,7 @@
 import { Button, Key, Point, keyboard, mouse } from "@nut-tree-fork/nut-js"
 import { KEY_MAP } from "./KeyMap"
 import { moveRelative } from "./ydotool"
+import { readSystemClipboard } from "./clipboardReader"
 import os from "node:os"
 
 export interface InputMessage {
@@ -42,6 +43,10 @@ export class InputHandler {
 
 	setThrottleMs(ms: number) {
 		this.throttleMs = ms
+	}
+
+	async readClipboard(): Promise<string | null> {
+		return readSystemClipboard()
 	}
 
 	private isFiniteNumber(value: unknown): value is number {
@@ -159,19 +164,9 @@ export class InputHandler {
 				break
 			}
 
-			case "copy": {
-				try {
-					await keyboard.pressKey(this.modifier, Key.C)
-				} catch (err) {
-					console.warn("Error while copying:", err)
-				} finally {
-					await Promise.allSettled([
-						keyboard.releaseKey(Key.C),
-						keyboard.releaseKey(this.modifier),
-					])
-				}
+			case "copy":
 				break
-			}
+
 			case "paste": {
 				try {
 					await keyboard.pressKey(this.modifier, Key.V)
@@ -203,16 +198,13 @@ export class InputHandler {
 				// Horizontal scroll
 				if (this.isFiniteNumber(msg.dx) && Math.round(msg.dx) !== 0) {
 					const amount = this.clamp(Math.round(msg.dx), -MAX_SCROLL, MAX_SCROLL)
-					if (amount > 0) {
-						promises.push(mouse.scrollRight(amount).then(() => {}))
-					} else if (amount < 0) {
-						promises.push(mouse.scrollLeft(-amount).then(() => {}))
-					}
+					promises.push(
+						amount > 0
+							? mouse.scrollRight(amount).then(() => {})
+							: mouse.scrollLeft(-amount).then(() => {}),
+					)
 				}
-
-				if (promises.length) {
-					await Promise.all(promises)
-				}
+				if (promises.length) await Promise.all(promises)
 				break
 			}
 

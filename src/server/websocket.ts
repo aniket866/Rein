@@ -5,6 +5,7 @@ import os from "node:os"
 import { WebSocket, WebSocketServer } from "ws"
 import logger from "../utils/logger"
 import { InputHandler, type InputMessage } from "./InputHandler"
+import { readSystemClipboard, writeSystemClipboard } from "./clipboardReader"
 import type { Server as HttpServer } from "node:http"
 import type { Server as HttpsServer } from "node:https"
 
@@ -41,6 +42,8 @@ interface ExtWebSocket extends WebSocket {
 	isProvider?: boolean
 }
 
+// Per-socket in-memory clipboard store
+const clipboardStore = new Map<WebSocket, string>()
 // server: any is used to support Vite's dynamic httpServer types (http, https, http2)
 export function createWsServer(server: CompatibleServer) {
 	const configPath = "./src/server-config.json"
@@ -161,11 +164,12 @@ export function createWsServer(server: CompatibleServer) {
 						}
 						return
 					}
+
 					const raw = data.toString()
 					const now = Date.now()
 
 					if (raw.length > MAX_PAYLOAD_SIZE) {
-						logger.warn("Payload too large, rejecting message.")
+						logger.warn("Payload too large, rejecting.")
 						return
 					}
 
@@ -177,6 +181,61 @@ export function createWsServer(server: CompatibleServer) {
 							lastTokenTouch = now
 							touchToken(token)
 						}
+					}
+
+					// ── COPY ──────────────────────────────────────────────────────────────
+					// Mobile tapped Copy. Read whatever is in the laptop clipboard right now
+					if (msg.type === "copy") {
+						logger.info("Copy requested — reading server clipboard via nut-js")
+						const text = await readSystemClipboard()
+						logger.info(
+							`Clipboard read result: ${text === null ? "null" : `"${text.slice(0, 80)}..."`}`,
+						)
+
+						console.log("=== COPY REQUEST RECEIVED ===")
+						console.log("=== CLIPBOARD TEXT:", JSON.stringify(text))
+
+						if (text !== null && text.trim().length > 0) {
+							clipboardStore.set(ws, text)
+							ws.send(JSON.stringify({ type: "clipboard-sync", text }))
+							logger.info(`Clipboard synced to client: ${text.length} chars`)
+						} else {
+							logger.warn("Clipboard was empty — nothing to sync")
+							ws.send(JSON.stringify({ type: "clipboard-sync", text: "" }))
+						}
+						return
+					}
+
+					// ── PASTE ─────────────────────────────────────────────────────────────
+					// Mobile tapped Paste. Two sub-cases:
+					//   A) msg.text provided: mobile is sending us text to type on the laptop
+					//   B) no text: use what we stored from the last copy, or fall back to Ctrl+V
+					if (msg.type === "paste") {
+						const textFromMobile: string | undefined =
+							typeof msg.text === "string" && msg.text.length > 0
+								? msg.text
+								: undefined
+
+						const stored = clipboardStore.get(ws)
+						const textToType = textFromMobile ?? stored
+
+						if (textToType) {
+							// Write into server clipboard so Ctrl+V also works,
+							// then type it directly — most reliable
+							await writeSystemClipboard(textToType)
+							await inputHandler.handleMessage({
+								type: "text",
+								text: textToType,
+							})
+							logger.info(`Pasted ${textToType.length} chars via type`)
+						} else {
+							// Nothing stored — just fire Ctrl+V and hope for the best
+							logger.warn("No clipboard text stored, falling back to Ctrl+V")
+							await inputHandler.handleMessage({
+								type: "paste",
+							} as InputMessage)
+						}
+						return
 					}
 
 					if (msg.type === "get-ip") {
@@ -310,10 +369,10 @@ export function createWsServer(server: CompatibleServer) {
 							const current = fs.existsSync(configPath)
 								? JSON.parse(fs.readFileSync(configPath, "utf-8"))
 								: {}
-							const newConfig = { ...current, ...filtered }
-							fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2))
-
-							// Propagate inputThrottleMs immediately to live subsystems
+							fs.writeFileSync(
+								configPath,
+								JSON.stringify({ ...current, ...filtered }, null, 2),
+							)
 							if (typeof filtered.inputThrottleMs === "number") {
 								inputHandler.setThrottleMs(filtered.inputThrottleMs)
 							}
@@ -360,6 +419,7 @@ export function createWsServer(server: CompatibleServer) {
 			})
 
 			ws.on("close", () => {
+				clipboardStore.delete(ws)
 				stopMirror()
 				logger.info("Client disconnected")
 			})

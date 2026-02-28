@@ -111,14 +111,26 @@ export function ConnectionProvider({
 
 			try {
 				const msg = JSON.parse(event.data)
+
+				// Debug: log every incoming message type
+				console.log("[ws] incoming message type:", msg.type, msg)
+
 				if (msg.type === "connected") {
 					setPlatform(msg.platform || null)
 				}
+
 				const typeSubscribers = subscribersRef.current[msg.type]
 				if (typeSubscribers) {
 					for (const callback of typeSubscribers) {
 						callback(msg)
 					}
+				} else {
+					console.log(
+						"[ws] no subscribers for type:",
+						msg.type,
+						"registered:",
+						Object.keys(subscribersRef.current),
+					)
 				}
 			} catch (e) {
 				// Not JSON or silent error
